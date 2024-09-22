@@ -4,8 +4,8 @@ FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness
 https://arxiv.org/abs/2205.14135
 """
 
-import torch
 import math
+import torch
 
 
 def compute_attention_block(
