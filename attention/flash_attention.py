@@ -1,8 +1,9 @@
 """
-Toy implementation of 
+Toy implementation of
 FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness
 https://arxiv.org/abs/2205.14135
 """
+
 import torch
 import math
 
@@ -14,7 +15,7 @@ def compute_attention_block(
     value_block_j: torch.Tensor,
     current_softmax_denom: torch.Tensor,
     current_max_attn_score: torch.Tensor,
-    scale: float
+    scale: float,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Compute attention for a single block in the FlashAttention algorithm.
@@ -41,20 +42,25 @@ def compute_attention_block(
     updated_max_attn_score = torch.maximum(current_max_attn_score, block_max_attn_score)
     updated_softmax_denom = (
         torch.exp(current_max_attn_score - updated_max_attn_score) * current_softmax_denom
-        + 
-        torch.exp(block_max_attn_score - updated_max_attn_score) * block_attn_exp_sum
+        + torch.exp(block_max_attn_score - updated_max_attn_score) * block_attn_exp_sum
     )
     # Step 12: Update
-    past_block_adjustment = current_softmax_denom.unsqueeze(-1) * torch.exp(current_max_attn_score - updated_max_attn_score).unsqueeze(-1) * current_attn_output
-    new_block_contribution = torch.exp(block_max_attn_score - updated_max_attn_score).unsqueeze(-1) * (block_attn_exp_scores @ value_block_j)
-    updated_attn_output = (past_block_adjustment + new_block_contribution) / updated_softmax_denom.unsqueeze(-1)
+    past_block_adjustment = (
+        current_softmax_denom.unsqueeze(-1)
+        * torch.exp(current_max_attn_score - updated_max_attn_score).unsqueeze(-1)
+        * current_attn_output
+    )
+    new_block_contribution = torch.exp(block_max_attn_score - updated_max_attn_score).unsqueeze(
+        -1
+    ) * (block_attn_exp_scores @ value_block_j)
+    updated_attn_output = (
+        past_block_adjustment + new_block_contribution
+    ) / updated_softmax_denom.unsqueeze(-1)
     return updated_attn_output, updated_softmax_denom, updated_max_attn_score
 
+
 def flash_attention_forward(
-    query: torch.Tensor,
-    key: torch.Tensor,
-    value: torch.Tensor,
-    sram_size: int = 65536
+    query: torch.Tensor, key: torch.Tensor, value: torch.Tensor, sram_size: int = 65536
 ) -> torch.Tensor:
     """Implement the forward pass of FlashAttention algorithm.
 
@@ -76,13 +82,13 @@ def flash_attention_forward(
     Bc = int(sram_size / (4 * d))
     Br = int(min(Bc, d))
     print(f"{N=}, {Br=}, {Bc=}, {d=}")
-    
+
     scale = 1.0 / math.sqrt(d)
 
-    # Step 2: Initialize attn_output, softmax_denom, and max_attn_score (in FA in HBM) 
+    # Step 2: Initialize attn_output, softmax_denom, and max_attn_score (in FA in HBM)
     initial_attn_output = torch.zeros_like(query)
     initial_softmax_denom = torch.zeros(batch_size, N, device=query.device)
-    initial_max_attn_score = torch.ones(batch_size, N, device=query.device) * float('-inf')
+    initial_max_attn_score = torch.ones(batch_size, N, device=query.device) * float("-inf")
 
     # Step 3: Divide Q, K and V into Tr and Tc blocks
     Tr = math.ceil(N / Br)
@@ -101,18 +107,20 @@ def flash_attention_forward(
         value_block_j = value_blocks[j]
         # Step 7: For 1 <= i <= Tr, do
         for i in range(Tr):
-            attn_output_blocks[i], softmax_denom_blocks[i], max_attn_score_blocks[i] = compute_attention_block(
-                 current_attn_output=attn_output_blocks[i],
-                 query_block_i=query_blocks[i],
-                 key_block_j=key_block_j,
-                 value_block_j=value_block_j,
-                 current_softmax_denom=softmax_denom_blocks[i],
-                 current_max_attn_score=max_attn_score_blocks[i],
-                 scale=scale
+            attn_output_blocks[i], softmax_denom_blocks[i], max_attn_score_blocks[i] = (
+                compute_attention_block(
+                    current_attn_output=attn_output_blocks[i],
+                    query_block_i=query_blocks[i],
+                    key_block_j=key_block_j,
+                    value_block_j=value_block_j,
+                    current_softmax_denom=softmax_denom_blocks[i],
+                    current_max_attn_score=max_attn_score_blocks[i],
+                    scale=scale,
+                )
             )
-    
+
     final_attn_output = torch.cat(attn_output_blocks, dim=1)
     # final_softmax_denom = torch.cat(softmax_denom_blocks, dim=1)
     # final_max_attn_score = torch.cat(max_attn_score_blocks, dim=1)
-    
+
     return final_attn_output
