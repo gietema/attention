@@ -30,7 +30,8 @@ def compute_attention_block(
         scale (float): Scaling factor for attention scores.
 
     Returns:
-        Tuple[torch.Tensor, torch.Tensor, torch.Tensor]: Updated attention output, softmax denominator, and max attention score.
+        Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        Updated attention output, softmax denominator, and max attention score.
     """
     # Step 9: Compute block_attn_logits (S_ij)
     block_attn_logits = query_block_i @ key_block_j.transpose(1, 2) * scale
