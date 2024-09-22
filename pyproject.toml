@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "attention"
+version = "0.1.0"
+description = ""
+authors = ["gietema <jochem@giete.ma>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+torch = "^2.4.1"
+numpy = "^2.1.1"
+
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.3"
+ruff = "^0.6.7"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
