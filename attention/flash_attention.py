@@ -1,8 +1,36 @@
+"""
+Toy implementation of 
+FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness
+https://arxiv.org/abs/2205.14135
+"""
 import torch
 import math
 
 
-def compute_attention_block(current_attn_output, query_block_i, key_block_j, value_block_j, current_softmax_denom, current_max_attn_score, scale):
+def compute_attention_block(
+    current_attn_output: torch.Tensor,
+    query_block_i: torch.Tensor,
+    key_block_j: torch.Tensor,
+    value_block_j: torch.Tensor,
+    current_softmax_denom: torch.Tensor,
+    current_max_attn_score: torch.Tensor,
+    scale: float
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """
+    Compute attention for a single block in the FlashAttention algorithm.
+
+    Args:
+        current_attn_output (torch.Tensor): Current attention output.
+        query_block_i (torch.Tensor): Query block.
+        key_block_j (torch.Tensor): Key block.
+        value_block_j (torch.Tensor): Value block.
+        current_softmax_denom (torch.Tensor): Current softmax denominator.
+        current_max_attn_score (torch.Tensor): Current maximum attention score.
+        scale (float): Scaling factor for attention scores.
+
+    Returns:
+        Tuple[torch.Tensor, torch.Tensor, torch.Tensor]: Updated attention output, softmax denominator, and max attention score.
+    """
     # Step 9: Compute block_attn_logits (S_ij)
     block_attn_logits = query_block_i @ key_block_j.transpose(1, 2) * scale
     # Step 10: compute block_max_attn_score (m_ij_tilde), block_attn_exp_scores (P_ij_tilde), block_attn_exp_sum (l_ij_tilde)
@@ -22,9 +50,26 @@ def compute_attention_block(current_attn_output, query_block_i, key_block_j, val
     updated_attn_output = (past_block_adjustment + new_block_contribution) / updated_softmax_denom.unsqueeze(-1)
     return updated_attn_output, updated_softmax_denom, updated_max_attn_score
 
-def flash_attention_forward(query, key, value, sram_size: int = 65536):
-    """
-    sram_size: int = 65536 to get block size 256
+def flash_attention_forward(
+    query: torch.Tensor,
+    key: torch.Tensor,
+    value: torch.Tensor,
+    sram_size: int = 65536
+) -> torch.Tensor:
+    """Implement the forward pass of FlashAttention algorithm.
+
+    This is a toy implementation of the FlashAttention algorithm as described in the paper:
+    "FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness"
+    https://arxiv.org/abs/2205.14135
+
+    Args:
+        query (torch.Tensor): Query tensor of shape (batch_size, N, d).
+        key (torch.Tensor): Key tensor of shape (batch_size, N, d).
+        value (torch.Tensor): Value tensor of shape (batch_size, N, d).
+        sram_size (int, optional): SRAM size in bytes. Defaults to 65536 to get block size 256.
+
+    Returns:
+        torch.Tensor: The output of the attention operation.
     """
     batch_size, N, d = query.shape
     # Step 1: set block sizes
