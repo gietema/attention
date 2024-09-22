@@ -97,6 +97,7 @@ def flash_attention_forward(
     query_blocks = torch.split(query, Br, dim=1)
     key_blocks = torch.split(key, Bc, dim=1)
     value_blocks = torch.split(value, Bc, dim=1)
+    # Step 4: Divide O, l and m into Tr blocks
     attn_output_blocks = list(torch.split(initial_attn_output, Br, dim=1))
     softmax_denom_blocks = list(torch.split(initial_softmax_denom, Br, dim=1))
     max_attn_score_blocks = list(torch.split(initial_max_attn_score, Br, dim=1))
